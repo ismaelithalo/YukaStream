@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yuka Stream - Discord Activity</title>
+    <style>
+      body {
+        margin: 0;
+        background-color: #1e1f22;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+      }
+      video {
+        width: 100%;
+        max-width: 1280px;
+        aspect-ratio: 16/9;
+        background: #000;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+    </style>
+    <!-- Importando o motor HLS ultra-leve via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  </head>
+  <body>
+    <video id="stream-player" autoplay muted playsinline controls></video>
+
+    <script type="module">
+      // Importa o SDK do Discord
+      import { DiscordSDK } from "https://esm.sh/@discord/embedded-app-sdk";
+
+      // INSTRUÇÃO: Substitua pelo Client ID do seu aplicativo
+      const discordSdk = new DiscordSDK("1549994416033239092");
+
+      async function setup() {
+        // Avisa ao Discord que o app carregou
+        await discordSdk.ready();
+        console.log("Activity autenticada! Iniciando player HLS...");
+
+        const video = document.getElementById("stream-player");
+
+        // O SEGREDO DO TÚNEL: Usamos o mapeamento do Discord para buscar o HLS
+        const streamUrl = "/oracle/stream/yuka.m3u8";
+
+        if (Hls.isSupported()) {
+          // Configuração agressiva para esmagar o delay do HLS
+          const hls = new Hls({
+            liveSyncDurationCount: 2, // Tenta iniciar com apenas 2 segundos de atraso
+            maxLiveSyncPlaybackRate: 1.2, // Acelera o vídeo em 20% invisivelmente se o delay começar a subir
+            liveMaxLatencyDurationCount: 4, // Se o delay passar de 4 segundos, ele pula o vídeo pra frente
+          });
+
+          hls.loadSource(streamUrl);
+          hls.attachMedia(video);
+
+          hls.on(Hls.Events.MANIFEST_PARSED, function () {
+            video
+              .play()
+              .catch((e) =>
+                console.log("Aguardando interação do usuário para áudio", e),
+              );
+          });
+        }
+        // Fallback para iOS/Safari (que usam HLS nativamente)
+        else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = streamUrl;
+          video.addEventListener("loadedmetadata", function () {
+            video.play();
+          });
+        }
+      }
+
+      setup();
+    </script>
+  </body>
+</html>
